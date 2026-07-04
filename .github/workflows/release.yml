@@ -1,6 +1,7 @@
 {
   'name': 'Release',
   'on': { 'release': { 'types': ['published'] } },
+  'permissions': { 'contents': 'write' },
   'jobs':
     {
       'publish-release':
@@ -29,7 +30,7 @@
                   {
                     'upload_url': '${{ github.event.release.upload_url }}',
                     'asset_path': './build/valetudo-helper-httpbridge.exe',
-                    'asset_name': 'valetudo-helper-httpbridge.exe',
+                    'asset_name': 'valetudo-helper-httpbridge-win-x64.exe',
                     'asset_content_type': 'binary/octet-stream',
                   },
               },
@@ -40,8 +41,8 @@
                 'with':
                   {
                     'upload_url': '${{ github.event.release.upload_url }}',
-                    'asset_path': './build/valetudo-helper-httpbridge-amd64',
-                    'asset_name': 'valetudo-helper-httpbridge-amd64',
+                    'asset_path': './build/valetudo-helper-httpbridge-x64',
+                    'asset_name': 'valetudo-helper-httpbridge-linux-x64',
                     'asset_content_type': 'binary/octet-stream',
                   },
               },
@@ -53,7 +54,50 @@
                   {
                     'upload_url': '${{ github.event.release.upload_url }}',
                     'asset_path': './build/valetudo-helper-httpbridge-armv7',
-                    'asset_name': 'valetudo-helper-httpbridge-armv7',
+                    'asset_name': 'valetudo-helper-httpbridge-linux-armv7',
+                    'asset_content_type': 'binary/octet-stream',
+                  },
+              },
+            ],
+        },
+      'publish-release-macos':
+        {
+          'runs-on': 'macos-latest',
+          'steps':
+            [
+              { 'uses': 'actions/checkout@v4' },
+              {
+                'name': 'Use Node.js',
+                'uses': 'actions/setup-node@v4',
+                'with': { 'node-version': '18.x' },
+              },
+              { 'name': 'Install', 'run': 'npm ci' },
+              {
+                'name': 'Build',
+                'run': 'npm run build_mac',
+              },
+
+              {
+                'name': 'Upload macos arm64',
+                'uses': 'actions/upload-release-asset@v1.0.2',
+                'env': { 'GITHUB_TOKEN': '${{ secrets.GITHUB_TOKEN }}' },
+                'with':
+                  {
+                    'upload_url': '${{ github.event.release.upload_url }}',
+                    'asset_path': './build/valetudo-helper-httpbridge-macos-arm64',
+                    'asset_name': 'valetudo-helper-httpbridge-macos-arm64',
+                    'asset_content_type': 'binary/octet-stream',
+                  },
+              },
+              {
+                'name': 'Upload macos x64',
+                'uses': 'actions/upload-release-asset@v1.0.2',
+                'env': { 'GITHUB_TOKEN': '${{ secrets.GITHUB_TOKEN }}' },
+                'with':
+                  {
+                    'upload_url': '${{ github.event.release.upload_url }}',
+                    'asset_path': './build/valetudo-helper-httpbridge-macos-x64',
+                    'asset_name': 'valetudo-helper-httpbridge-macos-x64',
                     'asset_content_type': 'binary/octet-stream',
                   },
               },
