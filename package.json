@@ -6,15 +6,14 @@
   "bin": "app.js",
   "scripts": {
     "start": "node app.js",
-
     "build": "npm run build_win && npm run build_lin_x64 && npm run build_lin_armv7",
     "build_mac": "npm run build_mac_arm64 && npm run build_mac_x64",
     "build_all": "npm run build && npm run build_mac",
-    "build_win": "cross-env PKG_CACHE_PATH=./build_dependencies/pkg pkg --targets node16-win-x64 --compress Brotli --no-bytecode --public-packages \"*\" . --output ./build/valetudo-helper-httpbridge.exe",
-    "build_lin_x64": "cross-env PKG_CACHE_PATH=./build_dependencies/pkg pkg --targets node16-linuxstatic-x64 --compress Brotli --no-bytecode --public-packages \"*\" . --output ./build/valetudo-helper-httpbridge-x64",
-    "build_lin_armv7": "cross-env PKG_CACHE_PATH=./build_dependencies/pkg pkg --targets node16-linuxstatic-armv7 --compress Brotli --no-bytecode --public-packages \"*\" . --output ./build/valetudo-helper-httpbridge-armv7",
-    "build_mac_arm64": "cross-env PKG_CACHE_PATH=./build_dependencies/pkg pkg --targets node16-macos-arm64 --compress Brotli --no-bytecode --public-packages \"*\" . --output ./build/valetudo-helper-httpbridge-macos-arm64",
-    "build_mac_x64": "cross-env PKG_CACHE_PATH=./build_dependencies/pkg pkg --targets node16-macos-x64 --compress Brotli --no-bytecode --public-packages \"*\" . --output ./build/valetudo-helper-httpbridge-macos-x64"
+    "build_win": "cross-env PKG_CACHE_PATH=./build_dependencies/pkg pkg --targets node22-win-x64 --compress Brotli --no-bytecode --public-packages \"*\" . --output ./build/valetudo-helper-httpbridge.exe",
+    "build_lin_x64": "cross-env PKG_CACHE_PATH=./build_dependencies/pkg pkg --targets node22-linuxstatic-x64 --compress Brotli --no-bytecode --public-packages \"*\" . --output ./build/valetudo-helper-httpbridge-x64",
+    "build_lin_armv7": "cross-env PKG_CACHE_PATH=./build_dependencies/pkg pkg --targets node22-linuxstatic-armv7 --compress Brotli --no-bytecode --public-packages \"*\" . --output ./build/valetudo-helper-httpbridge-armv7",
+    "build_mac_arm64": "cross-env PKG_CACHE_PATH=./build_dependencies/pkg pkg --targets node22-macos-arm64 --compress Brotli --no-bytecode --public-packages \"*\" . --output ./build/valetudo-helper-httpbridge-macos-arm64",
+    "build_mac_x64": "cross-env PKG_CACHE_PATH=./build_dependencies/pkg pkg --targets node22-macos-x64 --compress Brotli --no-bytecode --public-packages \"*\" . --output ./build/valetudo-helper-httpbridge-macos-x64"
   },
   "author": "",
   "license": "Apache-2.0",
@@ -25,7 +24,7 @@
     "serve-index": "^1.9.2"
   },
   "devDependencies": {
-    "cross-env": "10.1.0",
-    "pkg": "5.8.1"
+    "@yao-pkg/pkg": "6.21.0",
+    "cross-env": "10.1.0"
   }
 }
