@@ -51,7 +51,8 @@ const storage = multer.diskStorage({
         cb(null, uploadDir)
     },
     filename: function (req, file, cb) {
-        cb(null, file.originalname)
+        // Strip any directory components so crafted filenames can't escape the upload dir
+        cb(null, path.basename(file.originalname))
     }
 })
 const upload = multer({ storage: storage })
