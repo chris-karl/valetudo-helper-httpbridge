@@ -57,9 +57,12 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage })
 
 expressApp.post('/upload', upload.single('file'), function (req, res, next) {
-    console.log(`[${new Date().toISOString()}] Client "${req.ip}" successfully uploaded file to "${req.file.path}"`);
+    // The path contains the client-provided filename, so strip CR/LF to prevent forged log lines
+    const uploadedPath = req.file.path.replace(/[\r\n]/g, "");
 
-    res.status(200).send(`Successfully uploaded file to "${req.file.path}"` + "\n");
+    console.log(`[${new Date().toISOString()}] Client "${req.ip}" successfully uploaded file to "${uploadedPath}"`);
+
+    res.status(200).set("Content-Type", "text/plain").send(`Successfully uploaded file to "${uploadedPath}"` + "\n");
 })
 
 expressApp.use('/', express.static(directory), serveIndex(directory, {'icons': true}));
