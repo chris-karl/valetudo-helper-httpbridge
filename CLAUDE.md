@@ -72,7 +72,7 @@ Steps once squash consent is given:
 
 This repo is a fork of [`Hypfer/valetudo-helper-httpbridge`](https://github.com/Hypfer/valetudo-helper-httpbridge).
 
-- **`origin`** (`git@github.com:joldjunge/valetudo-helper-httpbridge.git`) — our own fork and
+- **`origin`** (`git@github.com:chris-karl/valetudo-helper-httpbridge.git`) — our own fork and
   the **main working remote**. All branches, commits, and pushes go here, and `main` tracks
   `origin/main`.
 - The upstream project (`Hypfer/valetudo-helper-httpbridge`) is **not** configured as a git
