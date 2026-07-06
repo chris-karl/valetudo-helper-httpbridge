@@ -73,8 +73,11 @@ Steps once squash consent is given:
 This repo is a fork of [`Hypfer/valetudo-helper-httpbridge`](https://github.com/Hypfer/valetudo-helper-httpbridge).
 
 - **`origin`** (`git@github.com:chris-karl/valetudo-helper-httpbridge.git`) — our own fork and
-  the **main working remote**. All branches, commits, and pushes go here, and `main` tracks
+  the **primary working remote**. All branches, commits, and pushes go here, and `main` tracks
   `origin/main`.
-- The upstream project (`Hypfer/valetudo-helper-httpbridge`) is **not** configured as a git
-  remote. If you want to pull in upstream updates, add it explicitly (e.g. as `upstream`)
-  first; never push to it.
+- **`upstream`** (`git@github.com:Hypfer/valetudo-helper-httpbridge.git`) — the original
+  project. Use it **only to fetch upstream updates** (e.g. `git fetch upstream`);
+  **never push to it.** No local branch tracks `upstream`. Even when an upstream repo
+  also has a branch named `main`, an unqualified `main` always means the fork's branch;
+  refer to upstream branches explicitly as `upstream/<branch>` (this upstream's default
+  branch is `master`, i.e. `upstream/master`).
