@@ -1,9 +1,9 @@
-# valetudo-helper-httpbridge
-
 > **Note:** This repository is a fork of
 > [Hypfer/valetudo-helper-httpbridge](https://github.com/Hypfer/valetudo-helper-httpbridge).
 > On top of the upstream project, it adds macOS support (Apple Silicon and Intel builds)
 > and ships with updated third-party dependencies.
+
+# valetudo-helper-httpbridge
 
 ![example](https://user-images.githubusercontent.com/974410/162291456-7675c8de-e513-41f6-a9f7-954c8c621d07.png)
 
