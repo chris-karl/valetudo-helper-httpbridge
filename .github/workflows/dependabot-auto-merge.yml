@@ -80,7 +80,7 @@ jobs:
       # The Node base binaries pkg stitches the app onto are by far the
       # largest downloads of the build.
       - name: Cache pkg base binaries
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: build_dependencies/pkg
           key: pkg-fetch-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
@@ -136,7 +136,7 @@ jobs:
           cache: npm
 
       - name: Cache pkg base binaries
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: build_dependencies/pkg
           key: pkg-fetch-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
