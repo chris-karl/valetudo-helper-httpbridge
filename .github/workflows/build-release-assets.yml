@@ -1,4 +1,4 @@
-name: Build release assets
+name: Build Release Assets
 
 on:
   release:
@@ -18,7 +18,7 @@ permissions:
   contents: write
 
 jobs:
-  publish-release:
+  build-linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -58,7 +58,7 @@ jobs:
             ./build/valetudo-helper-httpbridge-linux-armv7 \
             --clobber
 
-  publish-release-macos:
+  build-macos:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7

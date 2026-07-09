@@ -1,11 +1,11 @@
-name: Dependabot auto-merge
+name: Dependabot Auto-Merge
 
 on:
   pull_request:
   workflow_dispatch:
     inputs:
       pr:
-        description: 'Number of the Dependabot PR to gate and merge'
+        description: 'Number of the Dependabot PR to check and merge'
         required: true
         type: string
       head:
@@ -18,19 +18,20 @@ permissions:
   pull-requests: write
   actions: write
 
-# One gate per PR; a force-push by Dependabot obsoletes the running gate.
+# One build check per PR; a force-push by Dependabot obsoletes the
+# running one.
 concurrency:
   group: dependabot-auto-merge-${{ github.event.pull_request.number || inputs.pr }}
   cancel-in-progress: true
 
 jobs:
-  # The build gate must run on the test merge of the PR into current main —
+  # The build check must run on the test merge of the PR into current main —
   # not on the PR head alone — so that what gets built is exactly the tree
   # the squash merge will put on main. The builds stamp the predicted
   # release version into the package files first, which makes their
-  # artifacts identical to the release assets: the auto-release attaches
+  # binaries identical to the release assets: the auto-release attaches
   # them directly instead of rebuilding (unless main moved in between).
-  resolve:
+  resolve-test-merge:
     if: github.actor == 'dependabot[bot]' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
@@ -46,7 +47,7 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      - name: Resolve the test merge commit to gate
+      - name: Resolve the test merge commit to check
         id: resolve
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -58,18 +59,18 @@ jobs:
           RUN_MERGE_SHA: ${{ github.sha }}
         run: .github/scripts/dependabot-auto-merge/resolve-test-merge.sh
 
-  build:
-    needs: resolve
+  build-linux:
+    needs: resolve-test-merge
     # Skipped for PRs that only touch CI files — nothing they change
     # ends up in the binaries.
-    if: needs.resolve.outputs.merge_sha != '' && needs.resolve.outputs.skip_build != 'true'
+    if: needs.resolve-test-merge.outputs.merge_sha != '' && needs.resolve-test-merge.outputs.skip_build != 'true'
     runs-on: ubuntu-latest
     outputs:
       tree: ${{ steps.tree.outputs.tree }}
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.resolve.outputs.merge_sha }}
+          ref: ${{ needs.resolve-test-merge.outputs.merge_sha }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -91,16 +92,16 @@ jobs:
         run: npm ci
 
       - name: Stamp the predicted release version
-        if: needs.resolve.outputs.next_tag != ''
+        if: needs.resolve-test-merge.outputs.next_tag != ''
         env:
-          NEXT_TAG: ${{ needs.resolve.outputs.next_tag }}
+          NEXT_TAG: ${{ needs.resolve-test-merge.outputs.next_tag }}
         run: npm version --no-git-tag-version --allow-same-version "${NEXT_TAG#v}"
 
       - name: Build
         run: npm run build
 
       # The tree hash identifies exactly what was built; the release
-      # only reuses the artifacts when its own tree is identical.
+      # only reuses the binaries when its own tree is identical.
       - name: Record the tree that was built
         id: tree
         run: |
@@ -108,8 +109,8 @@ jobs:
           echo "tree=$(git write-tree)" >> "$GITHUB_OUTPUT"
 
       # The release attaches these within minutes and deletes them right
-      # after, so the one-day retention only applies to gate runs that
-      # never merge (major updates, superseded rebases) and to failed
+      # after, so the one-day retention only applies to build-check runs
+      # that never merge (major updates, superseded rebases) and to failed
       # release runs. When the artifacts are gone, a retried or fresh
       # release run detects that and falls back to rebuilding.
       - name: Upload the assets for reuse by the release
@@ -121,13 +122,13 @@ jobs:
           overwrite: true
 
   build-macos:
-    needs: resolve
-    if: needs.resolve.outputs.merge_sha != '' && needs.resolve.outputs.skip_build != 'true'
+    needs: resolve-test-merge
+    if: needs.resolve-test-merge.outputs.merge_sha != '' && needs.resolve-test-merge.outputs.skip_build != 'true'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ needs.resolve.outputs.merge_sha }}
+          ref: ${{ needs.resolve-test-merge.outputs.merge_sha }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -147,9 +148,9 @@ jobs:
         run: npm ci
 
       - name: Stamp the predicted release version
-        if: needs.resolve.outputs.next_tag != ''
+        if: needs.resolve-test-merge.outputs.next_tag != ''
         env:
-          NEXT_TAG: ${{ needs.resolve.outputs.next_tag }}
+          NEXT_TAG: ${{ needs.resolve-test-merge.outputs.next_tag }}
         run: npm version --no-git-tag-version --allow-same-version "${NEXT_TAG#v}"
 
       - name: Build
@@ -164,13 +165,13 @@ jobs:
           overwrite: true
 
   merge:
-    needs: [resolve, build, build-macos]
+    needs: [resolve-test-merge, build-linux, build-macos]
     # The builds may have been skipped (CI-only PR), but must not have
     # failed.
     if: >-
       !cancelled() &&
-      needs.resolve.outputs.pr != '' &&
-      (needs.build.result == 'success' || needs.build.result == 'skipped') &&
+      needs.resolve-test-merge.outputs.pr != '' &&
+      (needs.build-linux.result == 'success' || needs.build-linux.result == 'skipped') &&
       (needs.build-macos.result == 'success' || needs.build-macos.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
@@ -190,8 +191,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-          PR: ${{ needs.resolve.outputs.pr }}
-          MERGE_SHA: ${{ needs.resolve.outputs.merge_sha }}
-          HEAD_SHA: ${{ needs.resolve.outputs.head_sha }}
-          GATE_TREE: ${{ needs.build.outputs.tree }}
+          PR: ${{ needs.resolve-test-merge.outputs.pr }}
+          MERGE_SHA: ${{ needs.resolve-test-merge.outputs.merge_sha }}
+          HEAD_SHA: ${{ needs.resolve-test-merge.outputs.head_sha }}
+          CHECKED_TREE: ${{ needs.build-linux.outputs.tree }}
         run: .github/scripts/dependabot-auto-merge/merge-pr.sh

@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
-# Resolve which test merge commit the build gate should run on, plus the
-# gate parameters derived from it: whether the builds can be skipped
+# Resolve which test merge commit the build check should run on, plus the
+# parameters derived from it: whether the builds can be skipped
 # (the PR only touches CI files) and the predicted release tag to stamp
 # into the binaries so they double as the release assets.
 # pull_request mode: take the merge straight from the event context.
@@ -46,7 +46,7 @@ else
 fi
 
 # A PR that only touches CI files cannot affect the built binaries, so
-# the gate merges it without building anything.
+# it is merged without building anything.
 files=$(gh api "repos/$GH_REPO/pulls/$pr/files" --paginate --jq '.[].filename')
 outside_ci=$(printf '%s\n' "$files" | grep -v '^\.github/' || true)
 if [ -z "$outside_ci" ]; then
@@ -56,13 +56,13 @@ else
   skip_build=false
 fi
 
-# Predict the tag an auto-release of this merge would carry, so the gate
-# builds binaries that already report the release version and can be
+# Predict the tag an auto-release of this merge would carry, so the build
+# check builds binaries that already report the release version and can be
 # attached to the release as-is. Prediction failure is not fatal: the
-# gate still validates the build, and the release run redoes the tag
-# computation (surfacing the error) and rebuilds.
+# build check still validates the build, and the release run redoes the
+# tag computation (surfacing the error) and rebuilds.
 if ! next_tag=$(BUMP=patch "$(dirname "$0")/../compute-next-tag.sh"); then
-  echo "::warning::Cannot compute the next release tag, the gate assets will not be reusable"
+  echo "::warning::Cannot compute the next release tag, the checked assets will not be reusable"
   echo "$next_tag"
   next_tag=
 fi

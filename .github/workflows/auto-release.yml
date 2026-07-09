@@ -1,4 +1,4 @@
-name: Auto-release
+name: Auto-Release
 
 on:
   push:
@@ -30,34 +30,39 @@ on:
         required: false
         type: string
         default: ''
-      gate_run_id:
-        description: 'ID of the gate run whose artifacts can become the release assets'
+      # The build check (the pre-merge build in dependabot-auto-merge.yml)
+      # hands over its run id and built tree so the release can reuse its
+      # binaries instead of rebuilding, when the trees still match.
+      checked_run_id:
+        description: 'ID of the build-check run whose binaries can become the release assets'
         required: false
         type: string
         default: ''
-      gate_tree:
-        description: 'Git tree hash the gate run built its artifacts from'
+      checked_tree:
+        description: 'Git tree hash the build-check run built its binaries from'
         required: false
         type: string
         default: ''
 
 permissions:
   contents: write
-  # Needed to download the gate run's artifacts.
+  # Needed to download the build check's assets.
   actions: read
 
-# Serialize runs so a release is fully published (and its tag created)
-# before the next run computes the commit range since the last tag.
+# Only the latest push to main matters: decide-release.sh inspects all
+# commits since the last tag, so a superseded run's decision is redundant.
+# Cancelling stale runs prevents runner exhaustion when multiple
+# Dependabot PRs merge in quick succession.
 concurrency:
   group: auto-release
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
-  prepare:
+  prepare-release:
     runs-on: ubuntu-latest
     outputs:
-      release: ${{ steps.check.outputs.release }}
-      tag: ${{ steps.check.outputs.tag }}
+      release: ${{ steps.decide.outputs.release }}
+      tag: ${{ steps.decide.outputs.tag }}
       sha: ${{ steps.bump.outputs.sha }}
       reuse: ${{ steps.reuse.outputs.reuse }}
     steps:
@@ -66,62 +71,62 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
-      # Same npm as in the gate builds, so both stamp byte-identical
+      # Same npm as in the build check, so both stamp byte-identical
       # package files (a formatting difference would break asset reuse).
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
 
-      - name: Check whether a release should happen and which tag it gets
-        id: check
+      - name: Decide whether a release should happen and which tag it gets
+        id: decide
         env:
           BUMP: ${{ inputs.bump }}
           EXPECTED_COMMIT: ${{ inputs.commit }}
-        run: .github/scripts/auto-release/check.sh
+        run: .github/scripts/auto-release/decide-release.sh
 
       - name: Bump the package version to the release tag
-        if: steps.check.outputs.release == 'true'
+        if: steps.decide.outputs.release == 'true'
         id: bump
         env:
-          TAG: ${{ steps.check.outputs.tag }}
+          TAG: ${{ steps.decide.outputs.tag }}
         run: .github/scripts/auto-release/bump-version.sh
 
-      - name: Check whether the gate artifacts match this release
-        if: steps.check.outputs.release == 'true'
+      - name: Decide whether the build check's assets match this release
+        if: steps.decide.outputs.release == 'true'
         id: reuse
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-          GATE_RUN_ID: ${{ inputs.gate_run_id }}
-          GATE_TREE: ${{ inputs.gate_tree }}
+          CHECKED_RUN_ID: ${{ inputs.checked_run_id }}
+          CHECKED_TREE: ${{ inputs.checked_tree }}
           SHA: ${{ steps.bump.outputs.sha }}
         run: .github/scripts/auto-release/decide-asset-reuse.sh
 
       - name: Create draft release
-        if: steps.check.outputs.release == 'true'
+        if: steps.decide.outputs.release == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ steps.check.outputs.tag }}
+          TAG: ${{ steps.decide.outputs.tag }}
           SHA: ${{ steps.bump.outputs.sha }}
         run: .github/scripts/auto-release/create-draft.sh
 
-  build:
-    needs: prepare
-    if: needs.prepare.outputs.release == 'true' && needs.prepare.outputs.reuse != 'true'
+  build-assets:
+    needs: prepare-release
+    if: needs.prepare-release.outputs.release == 'true' && needs.prepare-release.outputs.reuse != 'true'
     permissions:
       contents: write
     uses: ./.github/workflows/build-release-assets.yml
     with:
-      tag: ${{ needs.prepare.outputs.tag }}
-      ref: ${{ needs.prepare.outputs.sha }}
+      tag: ${{ needs.prepare-release.outputs.tag }}
+      ref: ${{ needs.prepare-release.outputs.sha }}
 
-  # When the release tree is identical to what the gate already built,
-  # its artifacts (stamped with this very version) become the release
-  # assets without rebuilding anything.
-  attach:
-    needs: prepare
-    if: needs.prepare.outputs.release == 'true' && needs.prepare.outputs.reuse == 'true'
+  # When the release tree is identical to what the build check already
+  # built, its binaries (stamped with this very version) become the
+  # release assets without rebuilding anything.
+  attach-checked-assets:
+    needs: prepare-release
+    if: needs.prepare-release.outputs.release == 'true' && needs.prepare-release.outputs.reuse == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -130,27 +135,27 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Attach the gate run's artifacts to the release
+      - name: Attach the build check's assets to the release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-          TAG: ${{ needs.prepare.outputs.tag }}
-          GATE_RUN_ID: ${{ inputs.gate_run_id }}
-        run: .github/scripts/auto-release/attach-gate-assets.sh
+          TAG: ${{ needs.prepare-release.outputs.tag }}
+          CHECKED_RUN_ID: ${{ inputs.checked_run_id }}
+        run: .github/scripts/auto-release/attach-checked-assets.sh
 
   # Only runs when all assets were built (or attached) successfully,
   # so a broken build never becomes a public release.
   publish:
-    needs: [prepare, build, attach]
+    needs: [prepare-release, build-assets, attach-checked-assets]
     if: >-
       !cancelled() &&
-      needs.prepare.outputs.release == 'true' &&
-      (needs.build.result == 'success' || needs.attach.result == 'success')
+      needs.prepare-release.outputs.release == 'true' &&
+      (needs.build-assets.result == 'success' || needs.attach-checked-assets.result == 'success')
     runs-on: ubuntu-latest
     steps:
       - name: Publish draft release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-          TAG: ${{ needs.prepare.outputs.tag }}
+          TAG: ${{ needs.prepare-release.outputs.tag }}
         run: gh release edit "$TAG" --draft=false
