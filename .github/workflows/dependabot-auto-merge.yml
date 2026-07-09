@@ -113,7 +113,7 @@ jobs:
       # release runs. When the artifacts are gone, a retried or fresh
       # release run detects that and falls back to rebuilding.
       - name: Upload the assets for reuse by the release
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-assets-linux
           path: build/
@@ -156,7 +156,7 @@ jobs:
         run: npm run build_mac
 
       - name: Upload the assets for reuse by the release
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-assets-macos
           path: build/
