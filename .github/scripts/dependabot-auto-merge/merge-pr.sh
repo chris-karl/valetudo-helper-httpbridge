@@ -15,6 +15,11 @@ if [ "$main_now" != "$checked_base" ]; then
   exit 0
 fi
 gh pr merge --squash --match-head-commit "$HEAD_SHA" "$PR"
+# The squash commit this merge just put on main is the exact commit the
+# release must build from; pin the dispatch to it. If main moves on
+# (another Dependabot merge) before the release runs, the release aborts
+# and that newer commit's own run handles it — nothing lands unreviewed.
+released_sha=$(gh api "repos/$GH_REPO/pulls/$PR" --jq '.merge_commit_sha')
 # A merge performed via GITHUB_TOKEN does not fire the push trigger
 # of the auto-release workflow (recursion protection), so dispatch it
 # explicitly — after giving the merge a moment to land on main. Handing
@@ -22,4 +27,5 @@ gh pr merge --squash --match-head-commit "$HEAD_SHA" "$PR"
 # check's binaries instead of rebuilding, when the trees still match.
 sleep 10
 gh workflow run auto-release.yml --ref main \
+  -f commit="$released_sha" \
   -f checked_run_id="$GITHUB_RUN_ID" -f checked_tree="$CHECKED_TREE"

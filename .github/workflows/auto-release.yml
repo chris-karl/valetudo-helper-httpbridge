@@ -12,7 +12,7 @@ on:
       # how human changes get released, and it resets the baseline so
       # Dependabot auto-releases resume afterwards.
       bump:
-        description: 'Version component to bump for a manual release'
+        description: 'Optional — version component to bump for a manual release'
         required: false
         type: choice
         default: auto
@@ -21,25 +21,25 @@ on:
           - patch
           - minor
           - major
-      # Optional safety pin: paste the SHA of the commit you reviewed
-      # and expect to release. If main does not point at it (commits
-      # landed after you looked), the run aborts and releases nothing —
-      # a release never silently includes more than what was pinned.
+      # Safety pin (required): the SHA of the commit to release. A human
+      # pastes the commit they reviewed; the automation passes the commit
+      # it just merged. If main does not point at it (commits landed
+      # after), the run aborts and releases nothing — a release never
+      # silently includes more than what was pinned.
       commit:
-        description: 'Commit SHA expected to be released (aborts when main is not exactly there)'
-        required: false
+        description: 'Required — SHA of the commit to release (aborts when main is not exactly there)'
+        required: true
         type: string
-        default: ''
       # The build check (the pre-merge build in dependabot-auto-merge.yml)
       # hands over its run id and built tree so the release can reuse its
       # binaries instead of rebuilding, when the trees still match.
       checked_run_id:
-        description: 'ID of the build-check run whose binaries can become the release assets'
+        description: 'Optional (automation handoff) — ID of the build-check run whose binaries can become the release assets'
         required: false
         type: string
         default: ''
       checked_tree:
-        description: 'Git tree hash the build-check run built its binaries from'
+        description: 'Optional (automation handoff) — Git tree hash the build-check run built its binaries from'
         required: false
         type: string
         default: ''

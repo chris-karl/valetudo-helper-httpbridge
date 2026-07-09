@@ -5,11 +5,11 @@ on:
   workflow_dispatch:
     inputs:
       pr:
-        description: 'Number of the Dependabot PR to check and merge'
+        description: 'Required — number of the Dependabot PR to check and merge'
         required: true
         type: string
       head:
-        description: 'Expected head SHA of the PR (aborts if the PR got new commits)'
+        description: 'Required — expected head SHA of the PR (aborts if the PR got new commits)'
         required: true
         type: string
 
