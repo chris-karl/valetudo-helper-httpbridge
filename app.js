@@ -8,6 +8,7 @@ const Tools = require("./utils/Tools");
 const express = require("express");
 const serveIndex = require("serve-index");
 const multer  = require('multer')
+const packageJson = require("./package.json");
 
 
 const program = new Command();
@@ -15,7 +16,7 @@ const program = new Command();
 program
     .name('valetudo-helper-httpbridge')
     .description('Utility Webserver')
-    .version('2023.08.0')
+    .version(packageJson.version)
     .option('-p, --port <port>', "webserver port (default: 1337)")
     .option('-d, --directory <path>', "directory", "./www/")
 

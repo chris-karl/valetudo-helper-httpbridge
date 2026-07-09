@@ -1,0 +1,96 @@
+name: Build release assets
+
+on:
+  release:
+    types: [published]
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Tag of the release to upload the assets to'
+        required: true
+        type: string
+      ref:
+        description: 'Commit SHA to build (needed while the tag only exists on a draft release)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+
+      # The Node base binaries pkg stitches the app onto are by far the
+      # largest downloads of the build.
+      - name: Cache pkg base binaries
+        uses: actions/cache@v4
+        with:
+          path: build_dependencies/pkg
+          key: pkg-fetch-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            pkg-fetch-${{ runner.os }}-
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag || github.event.release.tag_name }}
+        run: |
+          gh release upload "$TAG" \
+            ./build/valetudo-helper-httpbridge-win-x64.exe \
+            ./build/valetudo-helper-httpbridge-linux-x64 \
+            ./build/valetudo-helper-httpbridge-linux-armv7 \
+            --clobber
+
+  publish-release-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: Cache pkg base binaries
+        uses: actions/cache@v4
+        with:
+          path: build_dependencies/pkg
+          key: pkg-fetch-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            pkg-fetch-${{ runner.os }}-
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build_mac
+
+      - name: Upload assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag || github.event.release.tag_name }}
+        run: |
+          gh release upload "$TAG" \
+            ./build/valetudo-helper-httpbridge-macos-arm64 \
+            ./build/valetudo-helper-httpbridge-macos-x64 \
+            --clobber

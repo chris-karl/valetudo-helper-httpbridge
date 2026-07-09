@@ -1,0 +1,197 @@
+name: Dependabot auto-merge
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: 'Number of the Dependabot PR to gate and merge'
+        required: true
+        type: string
+      head:
+        description: 'Expected head SHA of the PR (aborts if the PR got new commits)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+# One gate per PR; a force-push by Dependabot obsoletes the running gate.
+concurrency:
+  group: dependabot-auto-merge-${{ github.event.pull_request.number || inputs.pr }}
+  cancel-in-progress: true
+
+jobs:
+  # The build gate must run on the test merge of the PR into current main —
+  # not on the PR head alone — so that what gets built is exactly the tree
+  # the squash merge will put on main. The builds stamp the predicted
+  # release version into the package files first, which makes their
+  # artifacts identical to the release assets: the auto-release attaches
+  # them directly instead of rebuilding (unless main moved in between).
+  resolve:
+    if: github.actor == 'dependabot[bot]' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      pr: ${{ steps.resolve.outputs.pr }}
+      merge_sha: ${{ steps.resolve.outputs.merge_sha }}
+      head_sha: ${{ steps.resolve.outputs.head_sha }}
+      skip_build: ${{ steps.resolve.outputs.skip_build }}
+      next_tag: ${{ steps.resolve.outputs.next_tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The release tag prediction needs the existing tags.
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Resolve the test merge commit to gate
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR_DISPATCH: ${{ inputs.pr }}
+          EXPECTED_HEAD: ${{ inputs.head }}
+          PR_EVENT_NUMBER: ${{ github.event.pull_request.number }}
+          PR_EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
+          RUN_MERGE_SHA: ${{ github.sha }}
+        run: .github/scripts/dependabot-auto-merge/resolve-test-merge.sh
+
+  build:
+    needs: resolve
+    # Skipped for PRs that only touch CI files — nothing they change
+    # ends up in the binaries.
+    if: needs.resolve.outputs.merge_sha != '' && needs.resolve.outputs.skip_build != 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      tree: ${{ steps.tree.outputs.tree }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.merge_sha }}
+
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+
+      # The Node base binaries pkg stitches the app onto are by far the
+      # largest downloads of the build.
+      - name: Cache pkg base binaries
+        uses: actions/cache@v4
+        with:
+          path: build_dependencies/pkg
+          key: pkg-fetch-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            pkg-fetch-${{ runner.os }}-
+
+      - name: Install
+        run: npm ci
+
+      - name: Stamp the predicted release version
+        if: needs.resolve.outputs.next_tag != ''
+        env:
+          NEXT_TAG: ${{ needs.resolve.outputs.next_tag }}
+        run: npm version --no-git-tag-version --allow-same-version "${NEXT_TAG#v}"
+
+      - name: Build
+        run: npm run build
+
+      # The tree hash identifies exactly what was built; the release
+      # only reuses the artifacts when its own tree is identical.
+      - name: Record the tree that was built
+        id: tree
+        run: |
+          git add -A
+          echo "tree=$(git write-tree)" >> "$GITHUB_OUTPUT"
+
+      # The release attaches these within minutes and deletes them right
+      # after, so the one-day retention only applies to gate runs that
+      # never merge (major updates, superseded rebases) and to failed
+      # release runs. When the artifacts are gone, a retried or fresh
+      # release run detects that and falls back to rebuilding.
+      - name: Upload the assets for reuse by the release
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets-linux
+          path: build/
+          retention-days: 1
+          overwrite: true
+
+  build-macos:
+    needs: resolve
+    if: needs.resolve.outputs.merge_sha != '' && needs.resolve.outputs.skip_build != 'true'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.resolve.outputs.merge_sha }}
+
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - name: Cache pkg base binaries
+        uses: actions/cache@v4
+        with:
+          path: build_dependencies/pkg
+          key: pkg-fetch-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            pkg-fetch-${{ runner.os }}-
+
+      - name: Install
+        run: npm ci
+
+      - name: Stamp the predicted release version
+        if: needs.resolve.outputs.next_tag != ''
+        env:
+          NEXT_TAG: ${{ needs.resolve.outputs.next_tag }}
+        run: npm version --no-git-tag-version --allow-same-version "${NEXT_TAG#v}"
+
+      - name: Build
+        run: npm run build_mac
+
+      - name: Upload the assets for reuse by the release
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-assets-macos
+          path: build/
+          retention-days: 1
+          overwrite: true
+
+  merge:
+    needs: [resolve, build, build-macos]
+    # The builds may have been skipped (CI-only PR), but must not have
+    # failed.
+    if: >-
+      !cancelled() &&
+      needs.resolve.outputs.pr != '' &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped') &&
+      (needs.build-macos.result == 'success' || needs.build-macos.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Fetch Dependabot metadata
+        if: github.event_name == 'pull_request'
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Dispatch retries are only ever started for PRs that already passed
+      # the non-major check below, so they skip the metadata lookup.
+      - name: Merge non-major updates
+        if: github.event_name == 'workflow_dispatch' || steps.metadata.outputs.update-type != 'version-update:semver-major'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ needs.resolve.outputs.pr }}
+          MERGE_SHA: ${{ needs.resolve.outputs.merge_sha }}
+          HEAD_SHA: ${{ needs.resolve.outputs.head_sha }}
+          GATE_TREE: ${{ needs.build.outputs.tree }}
+        run: .github/scripts/dependabot-auto-merge/merge-pr.sh

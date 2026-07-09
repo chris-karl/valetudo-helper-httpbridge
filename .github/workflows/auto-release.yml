@@ -1,0 +1,156 @@
+name: Auto-release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      # "auto" applies the normal automation rules (release only when
+      # everything since the last tag is Dependabot-authored, as the
+      # next patch version). Any other value releases the current main
+      # unconditionally with that version component bumped — this is
+      # how human changes get released, and it resets the baseline so
+      # Dependabot auto-releases resume afterwards.
+      bump:
+        description: 'Version component to bump for a manual release'
+        required: false
+        type: choice
+        default: auto
+        options:
+          - auto
+          - patch
+          - minor
+          - major
+      # Optional safety pin: paste the SHA of the commit you reviewed
+      # and expect to release. If main does not point at it (commits
+      # landed after you looked), the run aborts and releases nothing —
+      # a release never silently includes more than what was pinned.
+      commit:
+        description: 'Commit SHA expected to be released (aborts when main is not exactly there)'
+        required: false
+        type: string
+        default: ''
+      gate_run_id:
+        description: 'ID of the gate run whose artifacts can become the release assets'
+        required: false
+        type: string
+        default: ''
+      gate_tree:
+        description: 'Git tree hash the gate run built its artifacts from'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: write
+  # Needed to download the gate run's artifacts.
+  actions: read
+
+# Serialize runs so a release is fully published (and its tag created)
+# before the next run computes the commit range since the last tag.
+concurrency:
+  group: auto-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.check.outputs.release }}
+      tag: ${{ steps.check.outputs.tag }}
+      sha: ${{ steps.bump.outputs.sha }}
+      reuse: ${{ steps.reuse.outputs.reuse }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      # Same npm as in the gate builds, so both stamp byte-identical
+      # package files (a formatting difference would break asset reuse).
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - name: Check whether a release should happen and which tag it gets
+        id: check
+        env:
+          BUMP: ${{ inputs.bump }}
+          EXPECTED_COMMIT: ${{ inputs.commit }}
+        run: .github/scripts/auto-release/check.sh
+
+      - name: Bump the package version to the release tag
+        if: steps.check.outputs.release == 'true'
+        id: bump
+        env:
+          TAG: ${{ steps.check.outputs.tag }}
+        run: .github/scripts/auto-release/bump-version.sh
+
+      - name: Check whether the gate artifacts match this release
+        if: steps.check.outputs.release == 'true'
+        id: reuse
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          GATE_RUN_ID: ${{ inputs.gate_run_id }}
+          GATE_TREE: ${{ inputs.gate_tree }}
+          SHA: ${{ steps.bump.outputs.sha }}
+        run: .github/scripts/auto-release/decide-asset-reuse.sh
+
+      - name: Create draft release
+        if: steps.check.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.check.outputs.tag }}
+          SHA: ${{ steps.bump.outputs.sha }}
+        run: .github/scripts/auto-release/create-draft.sh
+
+  build:
+    needs: prepare
+    if: needs.prepare.outputs.release == 'true' && needs.prepare.outputs.reuse != 'true'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/build-release-assets.yml
+    with:
+      tag: ${{ needs.prepare.outputs.tag }}
+      ref: ${{ needs.prepare.outputs.sha }}
+
+  # When the release tree is identical to what the gate already built,
+  # its artifacts (stamped with this very version) become the release
+  # assets without rebuilding anything.
+  attach:
+    needs: prepare
+    if: needs.prepare.outputs.release == 'true' && needs.prepare.outputs.reuse == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      # Deleting the attached artifacts needs write access.
+      actions: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Attach the gate run's artifacts to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          GATE_RUN_ID: ${{ inputs.gate_run_id }}
+        run: .github/scripts/auto-release/attach-gate-assets.sh
+
+  # Only runs when all assets were built (or attached) successfully,
+  # so a broken build never becomes a public release.
+  publish:
+    needs: [prepare, build, attach]
+    if: >-
+      !cancelled() &&
+      needs.prepare.outputs.release == 'true' &&
+      (needs.build.result == 'success' || needs.attach.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: gh release edit "$TAG" --draft=false
