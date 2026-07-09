@@ -62,6 +62,11 @@ Steps once squash consent is given:
      squash merge as a real merge, so `-d` would refuse to delete the branch.
    - `git push origin --delete <branch>` — to remove it from the remote.
 
+## Tooling
+
+- The **`gh`** tool is **not** expected to be installed and **should not be installed**,
+  even if needed. Use alternative ways like **`curl`** instead.
+
 ## Keeping this file accurate
 
 - If the user clearly wants something different from what is written here, **offer** to
