@@ -71,10 +71,10 @@ jobs:
         with:
           ref: ${{ needs.resolve.outputs.merge_sha }}
 
-      - name: Use Node.js 22.x
+      - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 22.x
+          node-version-file: .nvmrc
           cache: npm
 
       # The Node base binaries pkg stitches the app onto are by far the
@@ -129,10 +129,10 @@ jobs:
         with:
           ref: ${{ needs.resolve.outputs.merge_sha }}
 
-      - name: Use Node.js 22.x
+      - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 22.x
+          node-version-file: .nvmrc
           cache: npm
 
       - name: Cache pkg base binaries

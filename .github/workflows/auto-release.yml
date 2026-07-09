@@ -68,10 +68,10 @@ jobs:
 
       # Same npm as in the gate builds, so both stamp byte-identical
       # package files (a formatting difference would break asset reuse).
-      - name: Use Node.js 22.x
+      - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 22.x
+          node-version-file: .nvmrc
 
       - name: Check whether a release should happen and which tag it gets
         id: check
