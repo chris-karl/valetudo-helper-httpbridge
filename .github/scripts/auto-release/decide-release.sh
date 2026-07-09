@@ -58,31 +58,34 @@ if [ "${BUMP:-auto}" != "auto" ]; then
 fi
 
 last_tag=$(git describe --tags --abbrev=0)
-# Two steps instead of piping git into sort, so that a git failure
-# aborts the script (set -e cannot see the left side of a pipe).
-author_emails=$(git log "$last_tag"..HEAD --format='%ae')
-if [ -z "$author_emails" ]; then
-  echo "No new commits since $last_tag, nothing to release"
+
+# Paths that never affect the shipped binaries — used as pathspecs to
+# scope both the diff and the author check below.
+set -- \
+  ':(exclude).github/' \
+  ':(exclude)LICENSE' \
+  ':(exclude)Readme.md' \
+  ':(exclude)CLAUDE.md' \
+  ':(exclude).gitignore'
+
+# A pathspec list of only negative entries matches "everything except
+# these", so this diff covers all release-relevant files.
+if [ -z "$(git diff --name-only "$last_tag"..HEAD -- "$@")" ]; then
+  echo "No release-relevant changes since $last_tag, nothing to release"
   echo "release=false" >> "$GITHUB_OUTPUT"
   exit 0
 fi
 # github-actions[bot] authors the version bump commits; one can sit
 # untagged on main when a previous run failed after pushing it.
+# Two steps instead of piping git into sort, so that a git failure
+# aborts the script (set -e cannot see the left side of a pipe).
+author_emails=$(git log "$last_tag"..HEAD --format='%ae' -- "$@")
 unexpected=$(printf '%s\n' "$author_emails" | sort -u | grep -Fxv \
   -e '49699333+dependabot[bot]@users.noreply.github.com' \
   -e '41898282+github-actions[bot]@users.noreply.github.com' || true)
 if [ -n "$unexpected" ]; then
-  echo "Commits since $last_tag are not exclusively authored by Dependabot, skipping auto-release. Unexpected authors:"
+  echo "Release-relevant commits since $last_tag are not exclusively authored by Dependabot, skipping auto-release. Unexpected authors:"
   echo "$unexpected"
-  echo "release=false" >> "$GITHUB_OUTPUT"
-  exit 0
-fi
-# Changes that only touch the CI setup do not alter the shipped
-# binaries; hold the release until something outside .github/ changes.
-changed_files=$(git diff --name-only "$last_tag"..HEAD)
-outside_ci=$(printf '%s\n' "$changed_files" | grep -v '^\.github/' || true)
-if [ -z "$outside_ci" ]; then
-  echo "Commits since $last_tag only touch .github/, nothing to release"
   echo "release=false" >> "$GITHUB_OUTPUT"
   exit 0
 fi
