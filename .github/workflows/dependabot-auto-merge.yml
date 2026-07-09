@@ -41,7 +41,7 @@ jobs:
       skip_build: ${{ steps.resolve.outputs.skip_build }}
       next_tag: ${{ steps.resolve.outputs.next_tag }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           # The release tag prediction needs the existing tags.
           fetch-depth: 0
@@ -68,12 +68,12 @@ jobs:
     outputs:
       tree: ${{ steps.tree.outputs.tree }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ needs.resolve-test-merge.outputs.merge_sha }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -81,7 +81,7 @@ jobs:
       # The Node base binaries pkg stitches the app onto are by far the
       # largest downloads of the build.
       - name: Cache pkg base binaries
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build_dependencies/pkg
           key: pkg-fetch-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
@@ -114,7 +114,7 @@ jobs:
       # release runs. When the artifacts are gone, a retried or fresh
       # release run detects that and falls back to rebuilding.
       - name: Upload the assets for reuse by the release
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-assets-linux
           path: build/
@@ -126,18 +126,18 @@ jobs:
     if: needs.resolve-test-merge.outputs.merge_sha != '' && needs.resolve-test-merge.outputs.skip_build != 'true'
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ needs.resolve-test-merge.outputs.merge_sha }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: .nvmrc
           cache: npm
 
       - name: Cache pkg base binaries
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: build_dependencies/pkg
           key: pkg-fetch-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
@@ -157,7 +157,7 @@ jobs:
         run: npm run build_mac
 
       - name: Upload the assets for reuse by the release
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-assets-macos
           path: build/
@@ -175,7 +175,7 @@ jobs:
       (needs.build-macos.result == 'success' || needs.build-macos.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Fetch Dependabot metadata
         if: github.event_name == 'pull_request'
