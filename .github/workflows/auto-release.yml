@@ -69,7 +69,7 @@ jobs:
       # Same npm as in the gate builds, so both stamp byte-identical
       # package files (a formatting difference would break asset reuse).
       - name: Use Node.js 22.x
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22.x
 
