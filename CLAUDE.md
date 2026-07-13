@@ -62,6 +62,55 @@ Steps once squash consent is given:
      squash merge as a real merge, so `-d` would refuse to delete the branch.
    - `git push origin --delete <branch>` — to remove it from the remote.
 
+## Release notes
+
+When asked to generate release notes, write them for a **user deciding whether to
+update** — describe what changed for them and why it matters, in plain language, not a
+raw list of commits. Follow this structure and style, and **hand the finished notes to the
+user as raw Markdown inside a fenced code block** so the source can be copied verbatim.
+
+### Structure
+
+1. **Fork note.** Open with a blockquote naming the upstream project this repo forks, built
+   from the upstream repo and URL given in the *Repository context* section:
+
+   ```
+   > **Note:** This repository is a fork of [<owner>/<repo>](<upstream-url>) with modifications.
+   ```
+
+2. **`### What's New`** heading.
+
+3. **Optional overview.** When the release has one unifying theme or a big headline change,
+   add a sentence or two summarizing it before the subsections. Skip it for a grab-bag of
+   small fixes and go straight to the subsections.
+
+4. **One `#### <emoji> <title>` subsection per notable change.** Lead each with a single
+   topical emoji and a short title (noun phrase or imperative). Explain the change from the
+   user's point of view.
+
+5. **`#### 🔧 Under the hood`** — collect the minor, internal, or hard-to-notice changes
+   (dependency bumps, refactors, build/CI, subtle correctness fixes) here instead of giving
+   each its own top-level subsection.
+
+6. **Closing note** where warranted — e.g. a bold **Updating to this version is strongly
+   recommended.** after security fixes, or a one-line "maintenance release, updating is
+   optional but recommended" summary.
+
+### Style
+
+- **Explain impact, not just mechanics.** Say what a user would observe or need to do, and
+  spell out any jargon on first use (e.g. "cross-site scripting (XSS)").
+- **Bold the key takeaway** of a subsection or bullet so it stays skimmable.
+- **Use a table for renames** and other old→new mappings (`| Old name | New name |`), and
+  remind readers to update any scripts that depend on the old names.
+- Use short bullet lists for several related points inside one subsection.
+- Keep prose tight; link to the README or other docs for step-by-step details rather than
+  inlining them.
+- **Do not use dashes to join sentences or clauses** in the release text. Where a dash
+  would connect two statements, use a period or a comma instead.
+- Match the emoji to the topic (e.g. 🍎 macOS, 🔒 security, 🐛 fixes, 📦 packaging/assets,
+  🔧 under the hood, ⏳/🕰 timing, 🖥 runtime).
+
 ## Tooling
 
 - The **`gh`** tool is **not** expected to be installed and **should not be installed**,
