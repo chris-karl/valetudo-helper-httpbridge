@@ -108,6 +108,10 @@ user as raw Markdown inside a fenced code block** so the source can be copied ve
   inlining them.
 - **Do not use dashes to join sentences or clauses** in the release text. Where a dash
   would connect two statements, use a period or a comma instead.
+- **Check indentation before delivering.** Markdown treats lines indented by four or more
+  spaces as code blocks. Make sure no prose line is accidentally over-indented, especially
+  when incorporating text the user has pasted or copied from another source, as it may
+  carry stray leading whitespace.
 - Match the emoji to the topic (e.g. 🍎 macOS, 🔒 security, 🐛 fixes, 📦 packaging/assets,
   🔧 under the hood, ⏳/🕰 timing, 🖥 runtime).
 
