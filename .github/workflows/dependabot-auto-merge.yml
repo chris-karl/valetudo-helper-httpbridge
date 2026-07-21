@@ -41,7 +41,7 @@ jobs:
       skip_build: ${{ steps.resolve.outputs.skip_build }}
       next_tag: ${{ steps.resolve.outputs.next_tag }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The release tag prediction needs the existing tags.
           fetch-depth: 0
@@ -68,7 +68,7 @@ jobs:
     outputs:
       tree: ${{ steps.tree.outputs.tree }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.resolve-test-merge.outputs.merge_sha }}
 
@@ -126,7 +126,7 @@ jobs:
     if: needs.resolve-test-merge.outputs.merge_sha != '' && needs.resolve-test-merge.outputs.skip_build != 'true'
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.resolve-test-merge.outputs.merge_sha }}
 
@@ -175,7 +175,7 @@ jobs:
       (needs.build-macos.result == 'success' || needs.build-macos.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Fetch Dependabot metadata
         if: github.event_name == 'pull_request'
