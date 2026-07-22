@@ -95,6 +95,12 @@ raw list of commits. Follow the structure, style, and delivery rules below.
    recommended.** after security fixes, or a one-line "maintenance release, updating is
    optional but recommended" summary.
 
+7. **Full Changelog footer.** Finish every note with a single line reading
+   `**Full Changelog**: <url>`, where `<url>` is the GitHub compare link between the
+   previous and the new version tag, e.g.
+   `https://github.com/chris-karl/valetudo-helper-httpbridge/compare/v<previous>...v<current>`.
+   Separate this footer from the last line of actual content above it with two blank lines.
+
 ### Style
 
 - **Explain impact, not just mechanics.** Say what a user would observe or need to do, and
