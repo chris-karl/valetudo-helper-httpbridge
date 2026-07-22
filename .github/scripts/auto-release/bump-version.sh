@@ -19,6 +19,8 @@ else
   # If something else lands on main first, this push fails and the run
   # with it — the auto-release run dispatched for whatever landed will
   # redo the bump on top and release everything together.
-  git push origin HEAD:main
+  # Push with an explicit one-shot token (the checkout persists no
+  # credentials), so the writable token never lands in .git/config.
+  git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:main
 fi
 echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"

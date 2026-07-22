@@ -44,10 +44,9 @@ on:
         type: string
         default: ''
 
+# Read-only floor; each job elevates to only the scopes it needs.
 permissions:
-  contents: write
-  # Needed to download the build check's assets.
-  actions: read
+  contents: read
 
 # Only the latest push to main matters: decide-release.sh inspects all
 # commits since the last tag, so a superseded run's decision is redundant.
@@ -60,6 +59,12 @@ concurrency:
 jobs:
   prepare-release:
     runs-on: ubuntu-latest
+    # bump-version.sh pushes the version commit to main and create-draft.sh
+    # creates the draft release (contents: write); decide-asset-reuse.sh reads
+    # the build-check run's artifacts (actions: read).
+    permissions:
+      contents: write
+      actions: read
     outputs:
       release: ${{ steps.decide.outputs.release }}
       tag: ${{ steps.decide.outputs.tag }}
@@ -70,6 +75,10 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
+          # bump-version.sh pushes with an explicit token instead, so the
+          # writable credential is never left in .git/config — nothing this
+          # job runs now or later could scrape it from there.
+          persist-credentials: false
 
       # Same npm as in the build check, so both stamp byte-identical
       # package files (a formatting difference would break asset reuse).
@@ -89,6 +98,7 @@ jobs:
         if: steps.decide.outputs.release == 'true'
         id: bump
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.decide.outputs.tag }}
         run: .github/scripts/auto-release/bump-version.sh
 
@@ -134,6 +144,10 @@ jobs:
       actions: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # attach-checked-assets.sh only calls the GitHub API via GH_TOKEN,
+          # so keep the writable token out of .git/config.
+          persist-credentials: false
 
       - name: Attach the build check's assets to the release
         env:
@@ -152,6 +166,9 @@ jobs:
       needs.prepare-release.outputs.release == 'true' &&
       (needs.build-assets.result == 'success' || needs.attach-checked-assets.result == 'success')
     runs-on: ubuntu-latest
+    # Flips the finished draft to published.
+    permissions:
+      contents: write
     steps:
       - name: Publish draft release
         env:
