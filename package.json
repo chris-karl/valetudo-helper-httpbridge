@@ -1,6 +1,6 @@
 {
   "name": "valetudo-helper-httpbridge",
-  "version": "1.2.27",
+  "version": "1.2.28",
   "description": "",
   "main": "app.js",
   "bin": "app.js",
