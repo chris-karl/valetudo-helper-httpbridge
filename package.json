@@ -22,12 +22,12 @@
   },
   "dependencies": {
     "commander": "^15.0.0",
-    "express": "^5.2.1",
-    "multer": "^2.4.0",
+    "express": "^5.3.0",
+    "multer": "^2.5.0",
     "serve-index": "^1.9.2"
   },
   "devDependencies": {
-    "@yao-pkg/pkg": "6.23.0",
+    "@yao-pkg/pkg": "6.24.0",
     "cross-env": "10.1.0"
   },
   "allowScripts": {
